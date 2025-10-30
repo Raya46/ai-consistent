@@ -87,7 +87,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 via-gray-50 to-blue-200 flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-linear-to-b from-white via-white to-blue-200 flex flex-col items-center justify-center p-4">
       <div className="text-center max-w-3xl mb-8">
         <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-linear-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
           AI-Powered Consistency Check
@@ -106,7 +106,7 @@ export default function HomePage() {
             onClick={feature.onClick}
           >
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-gradient-to-b from-blue-600 to-indigo-400 flex items-center justify-center mb-4">
+              <div className="h-12 w-12 rounded-lg bg-linear-to-b from-blue-600 to-indigo-400 flex items-center justify-center mb-4">
                 <feature.icon className="h-6 w-6 text-white" />
               </div>
               <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
