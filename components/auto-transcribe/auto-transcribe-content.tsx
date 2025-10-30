@@ -8,6 +8,8 @@ import {
   Users,
   Clock,
   CheckCircle,
+  HelpCircle,
+  CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -64,6 +66,58 @@ export default function AutoTranscribeContent() {
     duration: "45:32",
     wordCount: 5432,
     keyTopics: ["Experience", "Education", "Skills", "Projects"],
+  };
+
+  // Mock inconsistency data
+  const inconsistencyData = {
+    inconsistent: [
+      {
+        id: 1,
+        title: "Annual Revenue",
+        document: "Reported annual revenue = 100,000,000 IDR",
+        interview: "Reported annual revenue = 200,000,000 IDR",
+        severity: "high",
+      },
+      {
+        id: 2,
+        title: "Work Experience",
+        document: "Previous company duration = 2 years",
+        interview: "Previous company duration = 3 years",
+        severity: "medium",
+      },
+    ],
+    needClarification: [
+      {
+        id: 3,
+        title: "Project Timeline",
+        document: "Project completed in Q4 2023",
+        interview: "Project finished around end of year",
+        severity: "low",
+      },
+      {
+        id: 4,
+        title: "Team Size",
+        document: "Managed team of 5-7 people",
+        interview: "Led a small team",
+        severity: "low",
+      },
+    ],
+    aligned: [
+      {
+        id: 5,
+        title: "Education",
+        document: "Bachelor's degree in Computer Science",
+        interview: "CS graduate from university",
+        severity: "none",
+      },
+      {
+        id: 6,
+        title: "Technical Skills",
+        document: "Proficient in React, Node.js, Python",
+        interview: "Experience with React, Node.js, Python",
+        severity: "none",
+      },
+    ],
   };
 
   useEffect(() => {
@@ -495,29 +549,147 @@ export default function AutoTranscribeContent() {
           </div>
         </div>
 
-        {/* Right Column - Inconsistency and Speakers */}
+        {/* Right Column - Inconsistency Analysis (Main View) */}
         <div className="space-y-6">
-          {/* Inconsistency Alert */}
-          <Card className="bg-red-50 mb-6">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2">
+          {/* Inconsistency Analysis Header */}
+          <div className="bg-gray-50 rounded-lg shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+              Inconsistency Analysis
+            </h2>
+
+            {/* Summary Stats */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
+                <AlertTriangle className="h-8 w-8 text-red-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-red-600">
+                  {inconsistencyData.inconsistent.length}
+                </div>
+                <div className="text-sm text-gray-600">Inconsistent</div>
+              </div>
+
+              <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                <HelpCircle className="h-8 w-8 text-yellow-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-yellow-600">
+                  {inconsistencyData.needClarification.length}
+                </div>
+                <div className="text-sm text-gray-600">Need Clarification</div>
+              </div>
+
+              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
+                <CheckCheck className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                <div className="text-2xl font-bold text-green-600">
+                  {inconsistencyData.aligned.length}
+                </div>
+                <div className="text-sm text-gray-600">Aligned</div>
+              </div>
+            </div>
+
+            {/* Inconsistent Items */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
-                <CardTitle className="text-red-700">
-                  Inconsistency Detected
-                </CardTitle>
+                Inconsistent
+              </h3>
+              <div className="space-y-3">
+                {inconsistencyData.inconsistent.map((item) => (
+                  <Card key={item.id} className="border-red-200 bg-red-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-2 w-2 rounded-full bg-red-500 mt-2 flex-shrink-0"></div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-2">
+                            {item.title}
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-gray-600">
+                              <span className="font-medium">Document:</span>{" "}
+                              {item.document}
+                            </p>
+                            <p className="text-gray-600">
+                              <span className="font-medium">Interview:</span>{" "}
+                              {item.interview}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="space-y-2">
-                <p className="text-sm">
-                  Document: Reported annual revenue = 100,000,000 IDR
-                </p>
-                <p className="text-sm">
-                  Interview: Reported annual revenue = 200,000,000 IDR
-                </p>
+            </div>
+
+            {/* Need Clarification Items */}
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <HelpCircle className="h-5 w-5 text-yellow-500" />
+                Need Clarification
+              </h3>
+              <div className="space-y-3">
+                {inconsistencyData.needClarification.map((item) => (
+                  <Card
+                    key={item.id}
+                    className="border-yellow-200 bg-yellow-50"
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-2 w-2 rounded-full bg-yellow-500 mt-2 flex-shrink-0"></div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-2">
+                            {item.title}
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-gray-600">
+                              <span className="font-medium">Document:</span>{" "}
+                              {item.document}
+                            </p>
+                            <p className="text-gray-600">
+                              <span className="font-medium">Interview:</span>{" "}
+                              {item.interview}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Aligned Items */}
+            <div>
+              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                <CheckCheck className="h-5 w-5 text-green-500" />
+                Aligned
+              </h3>
+              <div className="space-y-3">
+                {inconsistencyData.aligned.map((item) => (
+                  <Card key={item.id} className="border-green-200 bg-green-50">
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="h-2 w-2 rounded-full bg-green-500 mt-2 flex-shrink-0"></div>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-2">
+                            {item.title}
+                          </h4>
+                          <div className="space-y-1 text-sm">
+                            <p className="text-gray-600">
+                              <span className="font-medium">Document:</span>{" "}
+                              {item.document}
+                            </p>
+                            <p className="text-gray-600">
+                              <span className="font-medium">Interview:</span>{" "}
+                              {item.interview}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
