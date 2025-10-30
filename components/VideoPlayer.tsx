@@ -24,20 +24,42 @@ export default function VideoPlayer({ file, fileName }: VideoPlayerProps) {
   const [duration, setDuration] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [sliderMax, setSliderMax] = useState(100);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    const updateTime = () => setCurrentTime(video.currentTime);
-    const updateDuration = () => setDuration(video.duration);
+    const updateTime = () => {
+      if (video && !isNaN(video.currentTime)) {
+        setCurrentTime(video.currentTime);
+      }
+    };
+
+    const updateDuration = () => {
+      if (video && !isNaN(video.duration) && isFinite(video.duration)) {
+        setDuration(video.duration);
+        setSliderMax(video.duration);
+      }
+    };
+
+    const handleLoadedData = () => {
+      if (video && !isNaN(video.duration) && isFinite(video.duration)) {
+        setDuration(video.duration);
+        setSliderMax(video.duration);
+      }
+    };
 
     video.addEventListener("timeupdate", updateTime);
     video.addEventListener("loadedmetadata", updateDuration);
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("durationchange", handleLoadedData);
 
     return () => {
       video.removeEventListener("timeupdate", updateTime);
       video.removeEventListener("loadedmetadata", updateDuration);
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("durationchange", handleLoadedData);
     };
   }, []);
 
@@ -57,22 +79,33 @@ export default function VideoPlayer({ file, fileName }: VideoPlayerProps) {
     const video = videoRef.current;
     if (!video) return;
 
-    video.currentTime = value[0];
-    setCurrentTime(value[0]);
+    // Use sliderMax which is updated when duration is available
+    const videoDuration = duration && isFinite(duration) ? duration : sliderMax;
+    if (!isFinite(videoDuration)) return;
+
+    const newTime = Math.min(Math.max(0, value[0]), videoDuration);
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const skipBackward = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    video.currentTime = Math.max(0, video.currentTime - 10);
+    const newTime = Math.max(0, video.currentTime - 10);
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const skipForward = () => {
     const video = videoRef.current;
     if (!video) return;
 
-    video.currentTime = Math.min(duration, video.currentTime + 10);
+    // Use sliderMax which is updated when duration is available
+    const videoDuration = duration && isFinite(duration) ? duration : sliderMax;
+    const newTime = Math.min(videoDuration, video.currentTime + 10);
+    video.currentTime = newTime;
+    setCurrentTime(newTime);
   };
 
   const toggleMute = () => {
@@ -154,14 +187,16 @@ export default function VideoPlayer({ file, fileName }: VideoPlayerProps) {
         <div>
           <Slider
             value={[currentTime]}
-            max={duration}
+            max={duration && isFinite(duration) ? duration : sliderMax}
             step={1}
             onValueChange={handleSeek}
             className="w-full"
           />
           <div className="flex justify-between text-xs text-gray-600 mt-1">
             <span>{formatTime(currentTime)}</span>
-            <span>{formatTime(duration)}</span>
+            <span>
+              {formatTime(duration && isFinite(duration) ? duration : 0)}
+            </span>
           </div>
         </div>
 
