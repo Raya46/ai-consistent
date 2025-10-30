@@ -25,10 +25,17 @@ export default function VideoPlayer({ file, fileName }: VideoPlayerProps) {
   const [isMuted, setIsMuted] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [sliderMax, setSliderMax] = useState(100);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !file) return;
+
+    setTimeout(() => {
+      setIsLoading(true);
+      setHasError(false);
+    }, 0);
 
     const updateTime = () => {
       if (video && !isNaN(video.currentTime)) {
@@ -47,21 +54,37 @@ export default function VideoPlayer({ file, fileName }: VideoPlayerProps) {
       if (video && !isNaN(video.duration) && isFinite(video.duration)) {
         setDuration(video.duration);
         setSliderMax(video.duration);
+        setTimeout(() => setIsLoading(false), 0);
       }
+    };
+
+    const handleCanPlay = () => {
+      setTimeout(() => setIsLoading(false), 0);
+    };
+
+    const handleError = () => {
+      setTimeout(() => {
+        setHasError(true);
+        setIsLoading(false);
+      }, 0);
     };
 
     video.addEventListener("timeupdate", updateTime);
     video.addEventListener("loadedmetadata", updateDuration);
     video.addEventListener("loadeddata", handleLoadedData);
     video.addEventListener("durationchange", handleLoadedData);
+    video.addEventListener("canplay", handleCanPlay);
+    video.addEventListener("error", handleError);
 
     return () => {
       video.removeEventListener("timeupdate", updateTime);
       video.removeEventListener("loadedmetadata", updateDuration);
       video.removeEventListener("loadeddata", handleLoadedData);
       video.removeEventListener("durationchange", handleLoadedData);
+      video.removeEventListener("canplay", handleCanPlay);
+      video.removeEventListener("error", handleError);
     };
-  }, []);
+  }, [file]);
 
   const togglePlay = () => {
     const video = videoRef.current;
@@ -156,28 +179,58 @@ export default function VideoPlayer({ file, fileName }: VideoPlayerProps) {
 
       {/* Video Player */}
       <div className="bg-black rounded-lg aspect-video flex items-center justify-center relative">
-        {isVideo ? (
-          <video
-            ref={videoRef}
-            src={file}
-            className="w-full h-full rounded-lg"
-            controls={false}
-          />
-        ) : (
-          <audio ref={videoRef} src={file} className="hidden" />
-        )}
-
-        {/* Audio Only Display */}
-        {!isVideo && (
+        {!file || hasError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
             <div className="text-center">
-              <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
-                <Volume2 className="h-8 w-8" />
+              <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mb-4">
+                <Volume2 className="h-8 w-8 text-red-400" />
               </div>
-              <p className="text-lg font-semibold">{fileName}</p>
-              <p className="text-sm opacity-75">Audio File</p>
+              <p className="text-lg font-semibold">
+                {hasError ? "Error loading file" : "No file selected"}
+              </p>
+              <p className="text-sm opacity-75">
+                {hasError
+                  ? "Please try uploading again"
+                  : "Please upload a file first"}
+              </p>
             </div>
           </div>
+        ) : (
+          <>
+            {isVideo ? (
+              <video
+                ref={videoRef}
+                src={file}
+                className="w-full h-full rounded-lg"
+                controls={false}
+              />
+            ) : (
+              <audio ref={videoRef} src={file} className="hidden" />
+            )}
+
+            {/* Loading Overlay */}
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                <div className="text-white text-center">
+                  <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin mb-2"></div>
+                  <p className="text-sm">Loading...</p>
+                </div>
+              </div>
+            )}
+
+            {/* Audio Only Display */}
+            {!isVideo && !isLoading && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                <div className="text-center">
+                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mb-4">
+                    <Volume2 className="h-8 w-8" />
+                  </div>
+                  <p className="text-lg font-semibold">{fileName}</p>
+                  <p className="text-sm opacity-75">Audio File</p>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 

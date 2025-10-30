@@ -52,27 +52,75 @@ export default function HomePage() {
     },
   ];
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
     const file = event.target.files?.[0];
     if (file && showUploadModal) {
-      // Create object URL for the uploaded file
-      const fileUrl = URL.createObjectURL(file);
+      try {
+        // Store file in IndexedDB for larger capacity
+        const dbName = "FileStorageDB";
+        const storeName = "files";
 
-      // Navigate to the respective page with file URL
-      if (showUploadModal === "document-analysis") {
-        router.push(
-          `/home/document-analysis?file=${encodeURIComponent(
-            fileUrl
-          )}&fileName=${encodeURIComponent(file.name)}`
-        );
-      } else if (showUploadModal === "auto-transcribe") {
-        router.push(
-          `/home/auto-transcribe?file=${encodeURIComponent(
-            fileUrl
-          )}&fileName=${encodeURIComponent(file.name)}`
-        );
+        // Open IndexedDB
+        const request = indexedDB.open(dbName, 1);
+
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          if (!db.objectStoreNames.contains(storeName)) {
+            db.createObjectStore(storeName);
+          }
+        };
+
+        request.onsuccess = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          const transaction = db.transaction([storeName], "readwrite");
+          const store = transaction.objectStore(storeName);
+
+          // Store the file
+          store.put(file, "uploadedFile");
+
+          transaction.oncomplete = () => {
+            // Store file metadata in sessionStorage
+            const fileData = {
+              type: file.type,
+              name: file.name,
+              size: file.size,
+              lastModified: file.lastModified,
+            };
+            sessionStorage.setItem(
+              "uploadedFileMeta",
+              JSON.stringify(fileData)
+            );
+
+            // Navigate to the respective page with file info
+            if (showUploadModal === "document-analysis") {
+              router.push(
+                `/home/document-analysis?fileName=${encodeURIComponent(
+                  file.name
+                )}`
+              );
+            } else if (showUploadModal === "auto-transcribe") {
+              router.push(
+                `/home/auto-transcribe?fileName=${encodeURIComponent(
+                  file.name
+                )}`
+              );
+            }
+            setShowUploadModal(null);
+          };
+
+          transaction.onerror = () => {
+            console.error("Error storing file in IndexedDB");
+          };
+        };
+
+        request.onerror = () => {
+          console.error("Error opening IndexedDB");
+        };
+      } catch (error) {
+        console.error("Error processing file:", error);
       }
-      setShowUploadModal(null);
     }
   };
 
