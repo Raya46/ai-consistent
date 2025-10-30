@@ -1,14 +1,12 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -17,14 +15,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { BarChart3, FileText, Mic } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState, useRef } from "react";
+import { useRef, useState, useEffect } from "react";
 
 export default function HomePage() {
   const router = useRouter();
-  const [showUploadModal, setShowUploadModal] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<{
+    document?: boolean;
+    audio?: boolean;
+  }>({});
+  const documentFileRef = useRef<HTMLInputElement>(null);
+  const audioFileRef = useRef<HTMLInputElement>(null);
 
   const features = [
     {
@@ -32,31 +37,72 @@ export default function HomePage() {
       title: "Document Analysis",
       description:
         "Extract key data and instantly generate required clarification questions",
-      onClick: () => setShowUploadModal("document-analysis"),
     },
     {
       icon: Mic,
       title: "Auto Transcribe",
       description:
-        "Convert audio and video interviews into searchable text with speaker detection",
-      onClick: () => setShowUploadModal("auto-transcribe"),
+        "Convert audio interviews into searchable text with speaker detection",
     },
     {
       icon: BarChart3,
       title: "Risk Dashboard",
       description:
         "Visualize and track key risk indicators across your verification process",
-      onClick: () => {
-        // Handle risk dashboard navigation
-      },
     },
   ];
 
+  // Clear sessionStorage and IndexedDB when component mounts
+  useEffect(() => {
+    const clearFileData = async () => {
+      try {
+        // Clear sessionStorage
+        sessionStorage.removeItem("documentFileMeta");
+        sessionStorage.removeItem("audioFileMeta");
+
+        // Clear IndexedDB
+        const dbName = "FileStorageDB";
+        const storeName = "files";
+
+        const request = indexedDB.open(dbName, 1);
+
+        request.onsuccess = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+
+          if (db.objectStoreNames.contains(storeName)) {
+            const transaction = db.transaction([storeName], "readwrite");
+            const store = transaction.objectStore(storeName);
+
+            // Clear all files from the store
+            store.clear();
+
+            transaction.oncomplete = () => {
+              console.log("IndexedDB cleared successfully");
+            };
+
+            transaction.onerror = () => {
+              console.error("Error clearing IndexedDB");
+            };
+          }
+        };
+
+        request.onerror = () => {
+          console.error("Error opening IndexedDB for clearing");
+        };
+      } catch (error) {
+        console.error("Error clearing file data:", error);
+      }
+    };
+
+    clearFileData();
+  }, []);
+
   const handleFileUpload = async (
+    fileType: "document" | "audio",
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
-    if (file && showUploadModal) {
+    if (file) {
       try {
         // Store file in IndexedDB for larger capacity
         const dbName = "FileStorageDB";
@@ -77,8 +123,10 @@ export default function HomePage() {
           const transaction = db.transaction([storeName], "readwrite");
           const store = transaction.objectStore(storeName);
 
-          // Store the file
-          store.put(file, "uploadedFile");
+          // Store the file with appropriate key
+          const storeKey =
+            fileType === "document" ? "uploadedDocument" : "uploadedAudio";
+          store.put(file, storeKey);
 
           transaction.oncomplete = () => {
             // Store file metadata in sessionStorage
@@ -87,27 +135,32 @@ export default function HomePage() {
               name: file.name,
               size: file.size,
               lastModified: file.lastModified,
+              fileType: fileType,
             };
             sessionStorage.setItem(
-              "uploadedFileMeta",
+              `${fileType}FileMeta`,
               JSON.stringify(fileData)
             );
 
-            // Navigate to the respective page with file info
-            if (showUploadModal === "document-analysis") {
-              router.push(
-                `/home/document-analysis?fileName=${encodeURIComponent(
-                  file.name
-                )}`
-              );
-            } else if (showUploadModal === "auto-transcribe") {
-              router.push(
-                `/home/auto-transcribe?fileName=${encodeURIComponent(
-                  file.name
-                )}`
-              );
-            }
-            setShowUploadModal(null);
+            // Update uploaded files state and check if both files are uploaded
+            setUploadedFiles((prev) => {
+              const updatedState = { ...prev, [fileType]: true };
+
+              // Only auto-navigate if both files are uploaded in this session
+              if (updatedState.document && updatedState.audio) {
+                const documentMeta = sessionStorage.getItem("documentFileMeta");
+                if (documentMeta) {
+                  const documentData = JSON.parse(documentMeta);
+                  router.push(
+                    `/home/document-analysis?fileName=${encodeURIComponent(
+                      documentData.name
+                    )}`
+                  );
+                }
+              }
+
+              return updatedState;
+            });
           };
 
           transaction.onerror = () => {
@@ -124,12 +177,33 @@ export default function HomePage() {
     }
   };
 
+  const handleDropAreaClick = (fileType: "document" | "audio") => {
+    const inputRef = fileType === "document" ? documentFileRef : audioFileRef;
+    inputRef.current?.click();
+  };
+
+  const handleContinue = () => {
+    const documentMeta = sessionStorage.getItem("documentFileMeta");
+    if (documentMeta) {
+      const documentData = JSON.parse(documentMeta);
+      router.push(
+        `/home/document-analysis?fileName=${encodeURIComponent(
+          documentData.name
+        )}`
+      );
+    }
+  };
+
   const handleDialogClose = (open: boolean) => {
     if (!open) {
-      setShowUploadModal(null);
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      setShowUploadModal(false);
+      setUploadedFiles({});
+      // Reset file inputs
+      if (documentFileRef.current) {
+        documentFileRef.current.value = "";
+      }
+      if (audioFileRef.current) {
+        audioFileRef.current.value = "";
       }
     }
   };
@@ -151,10 +225,10 @@ export default function HomePage() {
           <Card
             key={feature.title}
             className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-            onClick={feature.onClick}
+            onClick={() => setShowUploadModal(true)}
           >
             <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-linear-to-b from-blue-600 to-indigo-400 flex items-center justify-center mb-4">
+              <div className="h-12 w-12 rounded-lg bg-gradient-to-b from-blue-600 to-indigo-400 flex items-center justify-center mb-4">
                 <feature.icon className="h-6 w-6 text-white" />
               </div>
               <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
@@ -167,60 +241,77 @@ export default function HomePage() {
       </div>
 
       {/* Upload Dialog */}
-      <Dialog open={!!showUploadModal} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-[425px]">
+      <Dialog open={showUploadModal} onOpenChange={handleDialogClose}>
+        <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>
-              Upload File for{" "}
-              {showUploadModal === "document-analysis"
-                ? "Document Analysis"
-                : "Auto Transcribe"}
-            </DialogTitle>
+            <DialogTitle>Upload Files for Analysis</DialogTitle>
             <DialogDescription>
-              {showUploadModal === "document-analysis"
-                ? "Please upload a PDF document for analysis."
-                : "Please upload an audio or video file for transcription."}
+              Please upload your document and audio files for consistency
+              checking.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-6 py-4">
+            {/* Document Upload */}
             <div className="grid gap-2">
-              <Label htmlFor="file-upload">Choose File</Label>
+              <Label htmlFor="document-upload" className="font-medium">
+                <FileText className="h-4 w-4 inline mr-2" />
+                Document (PDF)
+              </Label>
               <Input
-                id="file-upload"
+                id="document-upload"
                 type="file"
-                ref={fileInputRef}
-                accept={
-                  showUploadModal === "document-analysis"
-                    ? ".pdf"
-                    : "audio/*,video/*"
-                }
-                onChange={handleFileUpload}
+                ref={documentFileRef}
+                accept=".pdf"
+                onChange={(e) => handleFileUpload("document", e)}
                 className="cursor-pointer"
               />
             </div>
 
-            <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
-              {showUploadModal === "document-analysis" ? (
-                <FileText className="h-12 w-12 text-gray-400 mb-4 mx-auto" />
-              ) : (
-                <Mic className="h-12 w-12 text-gray-400 mb-4 mx-auto" />
-              )}
+            <div
+              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              onClick={() => handleDropAreaClick("document")}
+            >
+              <FileText className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
               <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Click to upload or drag and drop
+                Upload PDF document for analysis
               </p>
-              <p className="text-gray-500 dark:text-gray-400 text-xs mt-2">
-                {showUploadModal === "document-analysis"
-                  ? "PDF files only"
-                  : "Audio and video files"}
+            </div>
+
+            {/* Audio Upload */}
+            <div className="grid gap-2">
+              <Label htmlFor="audio-upload" className="font-medium">
+                <Mic className="h-4 w-4 inline mr-2" />
+                Audio File
+              </Label>
+              <Input
+                id="audio-upload"
+                type="file"
+                ref={audioFileRef}
+                accept="audio/*"
+                onChange={(e) => handleFileUpload("audio", e)}
+                className="cursor-pointer"
+              />
+            </div>
+
+            <div
+              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
+              onClick={() => handleDropAreaClick("audio")}
+            >
+              <Mic className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
+              <p className="text-gray-600 dark:text-gray-300 text-sm">
+                Upload audio file for transcriptions
               </p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUploadModal(null)}>
+            <Button variant="outline" onClick={() => setShowUploadModal(false)}>
               Cancel
             </Button>
+            {uploadedFiles.document && !uploadedFiles.audio && (
+              <Button onClick={handleContinue}>Continue</Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

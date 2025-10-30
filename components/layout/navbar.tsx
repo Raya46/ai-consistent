@@ -21,7 +21,11 @@ export function Navbar() {
         </Breadcrumb>
         {!hideSearch && (
           <div className="flex flex-1 items-center justify-center">
-            <Input type="search" placeholder="Search..." className="max-w-md" />
+            <Input
+              type="search"
+              placeholder="Search..."
+              className="max-w-md bg-white"
+            />
           </div>
         )}
       </div>
