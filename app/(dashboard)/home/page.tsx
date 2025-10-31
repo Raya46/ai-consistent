@@ -1,12 +1,8 @@
 "use client";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -15,11 +11,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { BarChart3, FileText, Mic } from "lucide-react";
+import { BarChart3, FileText, Mic, AlertCircle, Upload, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useFileUpload, formatBytes } from "@/hooks/use-file-upload";
+import { useFileStorage } from "@/hooks/use-file-storage";
 
 export default function HomePage() {
   const router = useRouter();
@@ -28,158 +24,68 @@ export default function HomePage() {
     document?: boolean;
     audio?: boolean;
   }>({});
-  const documentFileRef = useRef<HTMLInputElement>(null);
-  const audioFileRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const maxSizeMB = 10;
+  const maxSize = maxSizeMB * 1024 * 1024;
+  const maxFiles = 10;
+
+  const fileUploadState = useFileUpload({
+    accept: ".pdf",
+    maxSize,
+    multiple: true,
+    maxFiles,
+  });
+
+  const { files, isDragging, errors } = fileUploadState;
+  const {
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    removeFile,
+    clearFiles,
+    getInputProps,
+  } = fileUploadState;
+
+  const { clearAllData, storeFilesInIndexedDB } = useFileStorage();
 
   const features = [
     {
       icon: FileText,
       title: "Document Analysis",
-      description:
-        "Extract key data and instantly generate required clarification questions",
     },
     {
       icon: Mic,
       title: "Auto Transcribe",
-      description:
-        "Convert audio interviews into searchable text with speaker detection",
     },
     {
       icon: BarChart3,
       title: "Risk Dashboard",
-      description:
-        "Visualize and track key risk indicators across your verification process",
     },
   ];
 
-  // Clear sessionStorage and IndexedDB when component mounts
+  // Clear all data when component mounts
   useEffect(() => {
-    const clearFileData = async () => {
-      try {
-        // Clear sessionStorage
-        sessionStorage.removeItem("documentFileMeta");
-        sessionStorage.removeItem("audioFileMeta");
+    clearAllData().catch(console.error);
+  }, []); // Empty dependency array - run only once on mount
 
-        // Clear IndexedDB
-        const dbName = "FileStorageDB";
-        const storeName = "files";
-
-        const request = indexedDB.open(dbName, 1);
-
-        request.onsuccess = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-
-          if (db.objectStoreNames.contains(storeName)) {
-            const transaction = db.transaction([storeName], "readwrite");
-            const store = transaction.objectStore(storeName);
-
-            // Clear all files from the store
-            store.clear();
-
-            transaction.oncomplete = () => {
-              console.log("IndexedDB cleared successfully");
-            };
-
-            transaction.onerror = () => {
-              console.error("Error clearing IndexedDB");
-            };
-          }
-        };
-
-        request.onerror = () => {
-          console.error("Error opening IndexedDB for clearing");
-        };
-      } catch (error) {
-        console.error("Error clearing file data:", error);
-      }
-    };
-
-    clearFileData();
-  }, []);
-
-  const handleFileUpload = async (
-    fileType: "document" | "audio",
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      try {
-        // Store file in IndexedDB for larger capacity
-        const dbName = "FileStorageDB";
-        const storeName = "files";
-
-        // Open IndexedDB
-        const request = indexedDB.open(dbName, 1);
-
-        request.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          if (!db.objectStoreNames.contains(storeName)) {
-            db.createObjectStore(storeName);
-          }
-        };
-
-        request.onsuccess = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          const transaction = db.transaction([storeName], "readwrite");
-          const store = transaction.objectStore(storeName);
-
-          // Store the file with appropriate key
-          const storeKey =
-            fileType === "document" ? "uploadedDocument" : "uploadedAudio";
-          store.put(file, storeKey);
-
-          transaction.oncomplete = () => {
-            // Store file metadata in sessionStorage
-            const fileData = {
-              type: file.type,
-              name: file.name,
-              size: file.size,
-              lastModified: file.lastModified,
-              fileType: fileType,
-            };
-            sessionStorage.setItem(
-              `${fileType}FileMeta`,
-              JSON.stringify(fileData)
-            );
-
-            // Update uploaded files state and check if both files are uploaded
-            setUploadedFiles((prev) => {
-              const updatedState = { ...prev, [fileType]: true };
-
-              // Only auto-navigate if both files are uploaded in this session
-              if (updatedState.document && updatedState.audio) {
-                const documentMeta = sessionStorage.getItem("documentFileMeta");
-                if (documentMeta) {
-                  const documentData = JSON.parse(documentMeta);
-                  router.push(
-                    `/home/document-analysis?fileName=${encodeURIComponent(
-                      documentData.name
-                    )}`
-                  );
-                }
-              }
-
-              return updatedState;
-            });
-          };
-
-          transaction.onerror = () => {
-            console.error("Error storing file in IndexedDB");
-          };
-        };
-
-        request.onerror = () => {
-          console.error("Error opening IndexedDB");
-        };
-      } catch (error) {
-        console.error("Error processing file:", error);
-      }
+  // Store files in IndexedDB when files are added
+  useEffect(() => {
+    if (files.length > 0) {
+      storeFilesInIndexedDB(files)
+        .then(() => {
+          setUploadedFiles((prev) => ({
+            ...prev,
+            document: true,
+          }));
+        })
+        .catch(console.error);
     }
-  };
+  }, [files]); // Only depend on files, not storeFilesInIndexedDB
 
-  const handleDropAreaClick = (fileType: "document" | "audio") => {
-    const inputRef = fileType === "document" ? documentFileRef : audioFileRef;
-    inputRef.current?.click();
+  const handleDocumentDropZoneClick = () => {
+    setShowUploadModal(true);
   };
 
   const handleContinue = () => {
@@ -197,120 +103,181 @@ export default function HomePage() {
   const handleDialogClose = (open: boolean) => {
     if (!open) {
       setShowUploadModal(false);
-      setUploadedFiles({});
-      // Reset file inputs
-      if (documentFileRef.current) {
-        documentFileRef.current.value = "";
-      }
-      if (audioFileRef.current) {
-        audioFileRef.current.value = "";
-      }
+      clearFiles();
     }
   };
 
   return (
     <div className="min-h-screen bg-linear-to-b from-white via-white to-blue-200 flex flex-col items-center justify-center p-4">
       <div className="text-center max-w-3xl mb-8">
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-linear-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
-          AI-Powered Consistency Check
+        <Badge className="py-2 mb-6 px-4 bg-gradient-to-r from-blue-700 via-blue-300 to-blue-700 text-white border-0">
+          Powered by AI Verification Engine
+        </Badge>
+        <h1 className="text-5xl md:text-6xl font-semibold mb-6 bg-linear-to-r from-gray-900 to-gray-600 dark:from-gray-100 dark:to-gray-400 bg-clip-text text-transparent">
+          The Smart Way to Verify
         </h1>
         <p className="text-xl mb-8 text-gray-600 dark:text-gray-300">
-          Detect inconsistencies between interview responses and documents
-          automatically using advanced AI analysis
+          Instantly compare documents and interviews to detect inconsistencies,
+          clarify data, and build trust
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl px-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-6xl px-4 mb-8">
         {features.map((feature) => (
           <Card
             key={feature.title}
-            className="cursor-pointer hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-            onClick={() => setShowUploadModal(true)}
+            className="hover:shadow-lg rounded-2xl transition-all duration-300 h-20 border-0 flex flex-row items-center justify-between p-4 "
           >
-            <CardHeader>
-              <div className="h-12 w-12 rounded-lg bg-gradient-to-b from-blue-600 to-indigo-400 flex items-center justify-center mb-4">
-                <feature.icon className="h-6 w-6 text-white" />
-              </div>
-              <CardTitle className="text-xl mb-2">{feature.title}</CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-400">
-                {feature.description}
-              </CardDescription>
-            </CardHeader>
+            <div className="h-12 w-12 rounded-lg bg-gradient-to-b from-blue-600 to-indigo-400 flex items-center justify-center">
+              <feature.icon className="h-6 w-6 text-white" />
+            </div>
+            <CardTitle className="text-xl mr-14">{feature.title}</CardTitle>
           </Card>
         ))}
       </div>
 
+      {/* Document Dropzone */}
+      <Card className="w-full max-w-7xl mt-6">
+        <div className="flex flex-col items-center">
+          <p className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
+            Upload Document
+          </p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Start by uploading your financial or client document
+          </p>
+        </div>
+        <div className="w-full px-4">
+          <div
+            className="border-2 w-full border-dashed bg-blue-100/20 border-blue-600 dark:border-gray-600 rounded-lg p-8 text-center cursor-pointer hover:border-blue-700 hover:bg-blue-100/30 transition-colors"
+            onClick={handleDocumentDropZoneClick}
+          >
+            <FileText className="h-12 w-12 text-gray-400 mb-4 mx-auto" />
+            <p className="text-lg font-medium text-gray-600 dark:text-gray-300 mb-2">
+              Upload Documents for Analysis
+            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Click to upload or drag and drop multiple PDF files
+            </p>
+          </div>
+        </div>
+      </Card>
+
       {/* Upload Dialog */}
       <Dialog open={showUploadModal} onOpenChange={handleDialogClose}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>Upload Files for Analysis</DialogTitle>
             <DialogDescription>
-              Please upload your document and audio files for consistency
-              checking.
+              Please upload your documents for analysis. Multiple PDF files are
+              supported.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid gap-6 py-4">
-            {/* Document Upload */}
-            <div className="grid gap-2">
-              <Label htmlFor="document-upload" className="font-medium">
-                <FileText className="h-4 w-4 inline mr-2" />
-                Document (PDF)
-              </Label>
-              <Input
-                id="document-upload"
-                type="file"
-                ref={documentFileRef}
-                accept=".pdf"
-                onChange={(e) => handleFileUpload("document", e)}
-                className="cursor-pointer"
-              />
-            </div>
-
+          <div className="grid gap-4 py-4">
+            {/* Drop area */}
             <div
-              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
-              onClick={() => handleDropAreaClick("document")}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              data-dragging={isDragging || undefined}
+              data-files={files.length > 0 || undefined}
+              className="relative flex min-h-52 flex-col items-center overflow-hidden rounded-xl border border-dashed border-input p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:border-ring has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
             >
-              <FileText className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Upload PDF document for analysis
-              </p>
-            </div>
-
-            {/* Audio Upload */}
-            <div className="grid gap-2">
-              <Label htmlFor="audio-upload" className="font-medium">
-                <Mic className="h-4 w-4 inline mr-2" />
-                Audio File
-              </Label>
-              <Input
-                id="audio-upload"
-                type="file"
-                ref={audioFileRef}
-                accept="audio/*"
-                onChange={(e) => handleFileUpload("audio", e)}
-                className="cursor-pointer"
+              <input
+                {...getInputProps()}
+                ref={fileInputRef}
+                aria-label="Upload PDF file"
               />
+              <div className="flex flex-col items-center justify-center px-4 py-3 text-center">
+                <div
+                  className="mb-2 flex size-11 shrink-0 items-center justify-center rounded-full border bg-background"
+                  aria-hidden="true"
+                >
+                  <FileText className="size-4 opacity-60" />
+                </div>
+                <p className="mb-1.5 text-sm font-medium">
+                  Drop your PDF documents here
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  PDF files only (max. {maxSizeMB}MB, up to {maxFiles} files)
+                </p>
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="-ms-1 opacity-60" aria-hidden="true" />
+                  Select documents
+                </Button>
+              </div>
             </div>
 
-            <div
-              className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-4 text-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-colors"
-              onClick={() => handleDropAreaClick("audio")}
-            >
-              <Mic className="h-8 w-8 text-gray-400 mb-2 mx-auto" />
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Upload audio file for transcriptions
-              </p>
-            </div>
+            {errors.length > 0 && (
+              <div
+                className="flex items-center gap-1 text-xs text-destructive"
+                role="alert"
+              >
+                <AlertCircle className="size-3 shrink-0" />
+                <span>{errors[0]}</span>
+              </div>
+            )}
+
+            {/* File list */}
+            {files.length > 0 && (
+              <div className="space-y-2">
+                {files.map((file) => (
+                  <div
+                    key={file.id}
+                    className="flex items-center justify-between gap-2 rounded-lg border bg-background p-2 pe-3 max-w-full"
+                  >
+                    <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
+                      <div className="aspect-square shrink-0 rounded bg-accent flex items-center justify-center">
+                        <FileText className="size-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex min-w-0 flex-col gap-0.5">
+                        <p
+                          className="truncate text-[13px] font-medium max-w-[200px]"
+                          title={file.file.name}
+                        >
+                          {file.file.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatBytes(file.file.size)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="-me-2 size-8 text-muted-foreground/80 hover:bg-transparent hover:text-foreground shrink-0"
+                      onClick={() => removeFile(file.id)}
+                      aria-label="Remove file"
+                    >
+                      <X aria-hidden="true" />
+                    </Button>
+                  </div>
+                ))}
+
+                {/* Remove all files button */}
+                {files.length > 1 && (
+                  <div>
+                    <Button size="sm" variant="outline" onClick={clearFiles}>
+                      Remove all files
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowUploadModal(false)}>
               Cancel
             </Button>
-            {uploadedFiles.document && !uploadedFiles.audio && (
-              <Button onClick={handleContinue}>Continue</Button>
+            {files.length > 0 && (
+              <Button onClick={handleContinue}>Continue to Analysis</Button>
             )}
           </DialogFooter>
         </DialogContent>
