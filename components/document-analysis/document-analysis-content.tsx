@@ -363,7 +363,7 @@ export default function DocumentAnalysisContent() {
             <div className="mt-6">
               <Button
                 onClick={handleNextClick}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-400 hover:from-blue-700 hover:to-indigo-500 text-white font-semibold"
+                className="w-full bg-linear-to-r from-blue-600 to-indigo-400 hover:from-blue-700 hover:to-indigo-500 text-white font-semibold"
               >
                 Next to Audio Analysis
               </Button>
@@ -392,7 +392,7 @@ export default function DocumentAnalysisContent() {
               onDrop={handleDrop}
               data-dragging={isDragging || undefined}
               data-files={files.length > 0 || undefined}
-              className="relative flex min-h-52 flex-col items-center overflow-hidden rounded-xl border border-dashed border-input p-4 transition-colors not-data-[files]:justify-center has-[input:focus]:border-ring has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
+              className="relative flex min-h-52 flex-col items-center overflow-hidden rounded-xl border border-dashed border-input p-4 transition-colors not-data-files:justify-center has-[input:focus]:border-ring has-[input:focus]:ring-[3px] has-[input:focus]:ring-ring/50 data-[dragging=true]:bg-accent/50"
             >
               <input
                 {...getInputProps()}
@@ -498,4 +498,3 @@ export default function DocumentAnalysisContent() {
     </>
   );
 }
-S
