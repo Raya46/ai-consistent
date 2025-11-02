@@ -2,23 +2,34 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertTriangle, HelpCircle, CheckCheck } from "lucide-react";
-import { mockInconsistencyData, InconsistencyItem } from "@/data/mockData";
+
+// Define a more flexible props interface that matches the API response
+interface AnalysisItem {
+  title: string;
+  document: string;
+  interview: string;
+  severity: "high" | "medium" | "low";
+}
 
 interface InconsistencyAnalysisProps {
-	data?: typeof mockInconsistencyData;
+  data: {
+    inconsistent: AnalysisItem[];
+    needClarification: AnalysisItem[];
+    aligned: AnalysisItem[];
+  };
 }
 
 export default function InconsistencyAnalysis({
-	data = mockInconsistencyData,
+  data,
 }: InconsistencyAnalysisProps) {
-	const InconsistencyCard = ({
-		item,
-		type,
-	}: {
-		item: InconsistencyItem;
-		type: "inconsistent" | "needClarification" | "aligned";
-	}) => {
-		const getCardStyles = () => {
+  const InconsistencyCard = ({
+    item,
+    type,
+  }: {
+    item: AnalysisItem;
+    type: "inconsistent" | "needClarification" | "aligned";
+  }) => {
+    const getCardStyles = () => {
 			switch (type) {
 				case "inconsistent":
 					return "border-red-200 bg-red-50";
@@ -48,26 +59,26 @@ export default function InconsistencyAnalysis({
 							className={`h-2 w-2 rounded-full ${getDotColor()} mt-2 flex-shrink-0`}
 						></div>
 						<div className="flex-1">
-							<h4 className="font-medium text-gray-900 mb-2">{item.title}</h4>
-							<div className="space-y-1 text-sm">
-								<p className="text-gray-600">
-									<span className="font-medium">Document:</span> {item.document}
-								</p>
-								<p className="text-gray-600">
-									<span className="font-medium">Interview:</span>{" "}
-									{item.interview}
-								</p>
-							</div>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		);
-	};
+							       <h4 className="font-medium text-gray-900 mb-2">{item.title}</h4>
+							       <div className="space-y-1 text-sm">
+							         <p className="text-gray-600">
+							           <span className="font-medium">Document:</span> {item.document}
+							         </p>
+							         <p className="text-gray-600">
+							           <span className="font-medium">Interview:</span>{" "}
+							           {item.interview}
+							         </p>
+							       </div>
+							     </div>
+							   </div>
+							 </CardContent>
+						</Card>
+				);
+		};
 
-	return (
-		<div className="bg-white rounded-lg shadow-lg p-6">
-			<h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
+		return (
+				<div className="bg-white rounded-lg shadow-lg p-6">
+						<h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
 				<AlertTriangle className="h-6 w-6 text-red-600" />
 				Inconsistency Analysis
 			</h2>
@@ -101,46 +112,54 @@ export default function InconsistencyAnalysis({
 
 			{/* Inconsistent Items */}
 			<div className="mb-6">
-				<h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-					<AlertTriangle className="h-5 w-5 text-red-500" />
-					Inconsistent
-				</h3>
-				<div className="space-y-3">
-					{data.inconsistent.map((item) => (
-						<InconsistencyCard key={item.id} item={item} type="inconsistent" />
-					))}
-				</div>
-			</div>
+				    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+				      <AlertTriangle className="h-5 w-5 text-red-500" />
+				      Inconsistent
+				    </h3>
+				    <div className="space-y-3">
+				      {data.inconsistent.map((item, index) => (
+				        <InconsistencyCard
+				          key={`inconsistent-${index}`}
+				          item={item}
+				          type="inconsistent"
+				        />
+				      ))}
+				    </div>
+				  </div>
 
-			{/* Need Clarification Items */}
-			<div className="mb-6">
-				<h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-					<HelpCircle className="h-5 w-5 text-yellow-500" />
-					Need Clarification
-				</h3>
-				<div className="space-y-3">
-					{data.needClarification.map((item) => (
-						<InconsistencyCard
-							key={item.id}
-							item={item}
-							type="needClarification"
-						/>
-					))}
-				</div>
-			</div>
+				  {/* Need Clarification Items */}
+				  <div className="mb-6">
+				    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+				      <HelpCircle className="h-5 w-5 text-yellow-500" />
+				      Need Clarification
+				    </h3>
+				    <div className="space-y-3">
+				      {data.needClarification.map((item, index) => (
+				        <InconsistencyCard
+				          key={`clarification-${index}`}
+				          item={item}
+				          type="needClarification"
+				        />
+				      ))}
+				    </div>
+				  </div>
 
-			{/* Aligned Items */}
-			<div>
-				<h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-					<CheckCheck className="h-5 w-5 text-green-500" />
-					Aligned
-				</h3>
-				<div className="space-y-3">
-					{data.aligned.map((item) => (
-						<InconsistencyCard key={item.id} item={item} type="aligned" />
-					))}
+				  {/* Aligned Items */}
+				  <div>
+				    <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+				      <CheckCheck className="h-5 w-5 text-green-500" />
+				      Aligned
+				    </h3>
+				    <div className="space-y-3">
+				      {data.aligned.map((item, index) => (
+				        <InconsistencyCard
+				          key={`aligned-${index}`}
+				          item={item}
+				          type="aligned"
+				        />
+				      ))}
+				    </div>
+				  </div>
 				</div>
-			</div>
-		</div>
-	);
+		);
 }

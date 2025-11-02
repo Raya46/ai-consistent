@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const result = await generateObject({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4o-mini"),
       system:
         "You are an expert summarizer. Your task is to provide a concise, professional summary of the provided document text, capturing the key points, figures, and conclusions. The summary should be objective and data-driven.",
       prompt: `Please summarize the following document content:\n\n---\n\n${documentText}\n\n---`,

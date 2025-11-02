@@ -214,6 +214,13 @@ export default function DocumentAnalysisContent() {
   }, [textContent]);
 
   const handleNextClick = () => {
+    // Persist analysis data before navigating
+    sessionStorage.setItem("documentSummary", JSON.stringify(summary));
+    sessionStorage.setItem(
+      "verificationQuestions",
+      JSON.stringify(clarifications)
+    );
+
     if (hasAudio) {
       // Navigate to auto-transcribe page if audio already exists
       const audioMeta = sessionStorage.getItem("audioFileMeta");
@@ -242,6 +249,12 @@ export default function DocumentAnalysisContent() {
   const handleUploadAndContinue = () => {
     if (files.length > 0) {
       setShowAudioModal(false);
+      // Persist analysis data before navigating
+      sessionStorage.setItem("documentSummary", JSON.stringify(summary));
+      sessionStorage.setItem(
+        "verificationQuestions",
+        JSON.stringify(clarifications)
+      );
       // Navigate to auto-transcribe with the first audio file name
       const firstFile = files[0].file;
       router.push(

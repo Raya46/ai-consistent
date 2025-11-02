@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const result = await generateObject({
-      model: openai("gpt-4o"),
+      model: openai("gpt-4o-mini"),
       system:
         "You are VerifierAI, an artificial intelligence system designed to perform verification and inconsistency analysis. Your primary task is to generate questions that test a user's knowledge of a document to verify its contents. Formulate questions based on key data points (e.g., amounts, dates, names, specific terms) found in the text. These questions should be designed to be answered later by a user and compared against the document for consistency. Frame them as direct questions a user would ask an interviewee to confirm their understanding is aligned with the document. Produce at least 5 important verification questions.",
       prompt: `Based on the following document text, generate a list of verification questions:\n\n---\n\n${documentText}\n\n---`,
