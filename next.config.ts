@@ -1,20 +1,20 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  webpack: (config) => {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      canvas: false,
-    };
+	webpack: (config) => {
+		config.resolve.alias = {
+			...config.resolve.alias,
+			canvas: false,
+		};
 
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      canvas: false,
-    };
+		config.resolve.fallback = {
+			...config.resolve.fallback,
+			canvas: false,
+		};
 
-    return config;
-  },
-  turbopack: {},
+		return config;
+	},
+	turbopack: {},
 };
 
 export default nextConfig;
