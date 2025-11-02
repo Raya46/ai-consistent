@@ -33,7 +33,7 @@ export const useFileStorage = () => {
 				const dbName = "FileStorageDB";
 				const storeName = "files";
 
-				const request = indexedDB.open(dbName, 1);
+				const request = indexedDB.open(dbName, 2);
 
 				request.onsuccess = (event) => {
 					const db = (event.target as IDBOpenDBRequest).result;
